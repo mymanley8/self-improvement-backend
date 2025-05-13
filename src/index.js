@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const dotenv = require('dotenv');
+const bcrypt = require('bcryptjs');
 
 dotenv.config();
 
@@ -14,26 +15,6 @@ mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true
 }).then(() => console.log('MongoDB connected')).catch(err => console.error(err));
-
-// Directory Structure
-// - src/
-//   - controllers/
-//   - models/
-//   - routes/
-//   - index.js
-// - .env
-// - .gitignore
-// - package.json
-// - README.md
-
-// .gitignore
-// node_modules/
-// .env
-// .DS_Store
-
-// .env example:
-// MONGO_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/<dbname>?retryWrites=true&w=majority
-// JWT_SECRET=your_secret_key
 
 // User Schema
 const userSchema = new mongoose.Schema({
@@ -63,6 +44,34 @@ const authenticateToken = (req, res, next) => {
     next();
   });
 };
+
+// Register Route
+app.post('/register', async (req, res) => {
+  const { username, password } = req.body;
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  try {
+    const user = new User({ username, password: hashedPassword });
+    await user.save();
+    res.status(201).json({ message: 'User registered successfully' });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Login Route
+app.post('/login', async (req, res) => {
+  const { username, password } = req.body;
+  const user = await User.findOne({ username });
+
+  if (!user) return res.status(400).json({ message: 'User not found' });
+
+  const isPasswordValid = await bcrypt.compare(password, user.password);
+  if (!isPasswordValid) return res.status(403).json({ message: 'Invalid password' });
+
+  const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET);
+  res.json({ token });
+});
 
 // Routes
 app.get('/productivity', authenticateToken, async (req, res) => {
