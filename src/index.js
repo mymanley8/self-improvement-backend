@@ -35,8 +35,10 @@ const Productivity = mongoose.model('Productivity', productivitySchema);
 
 // Authentication Middleware
 const authenticateToken = (req, res, next) => {
-  const token = req.headers['authorization'];
-  if (!token) return res.sendStatus(401);
+  const authHeader = req.headers['authorization'];
+  if (!authHeader) return res.sendStatus(401);
+
+  const token = authHeader.split(' ')[1];
 
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) return res.sendStatus(403);
